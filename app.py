@@ -40,7 +40,8 @@ def load_and_parse_data():
         if not any(cell.strip() for cell in row[:6]):
             continue
 
-        if col0.endswith("回") and col1 == "":
+        # セッション（〇〇回、またはあずあず出張などの見出し）の検出
+        if (col0.endswith("回") or "あずあず出張" in col0) and col1 == "":
             current_session = col0
             mode = None
             continue
@@ -67,6 +68,10 @@ def load_and_parse_data():
                 "備考": row[6].strip() if len(row) > 6 else "",
             })
         elif mode == "match" and col0:
+            # 「あずあず出張」の試合は対戦集計から除外
+            if "あずあず出張" in current_session or "あずあず出張" in col0:
+                continue
+
             match_records.append({
                 "登場回": current_session,
                 "対戦相手": col0,
@@ -82,7 +87,7 @@ def load_and_parse_data():
 col_title, col_btn = st.columns([5, 1])
 with col_title:
     st.title("⚔️ ㊙りーふch対策 ダッシュボード")
-    st.caption("Googleスプレッドシートと自動連動中｜構築・選出・対戦履歴データベース")
+    st.caption("Googleスプレッドシートと自動連動中｜構築・選出・対戦履歴データベース（※あずあず出張は戦績集計対象外）")
 with col_btn:
     st.write("")
     if st.button("🔄 最新データに更新", use_container_width=True):
@@ -230,4 +235,8 @@ with tab4:
     st.dataframe(df_poke[df_poke["登場回"] == selected_session].drop(columns=["登場回"]), use_container_width=True, hide_index=True)
 
     st.markdown(f"### 🆚 {selected_session} の対戦結果")
-    st.dataframe(df_match[df_match["登場回"] == selected_session].drop(columns=["登場回"]), use_container_width=True, hide_index=True)
+    session_matches = df_match[df_match["登場回"] == selected_session]
+    if session_matches.empty:
+        st.info("この回の対戦成績は集計対象外です。")
+    else:
+        st.dataframe(session_matches.drop(columns=["登場回"]), use_container_width=True, hide_index=True)
