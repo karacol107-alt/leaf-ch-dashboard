@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import altair as alt
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -96,13 +97,13 @@ except Exception as e:
 
 # --- タブ切り替え ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "📊 全体サマリー・採用率",
+    "📊 全体サマリー・分析グラフ",
     "🔍 ポケモン個別検索",
     "⚔️ りふなー別戦績",
     "📋 対戦会アーカイブ"
 ])
 
-# === TAB 1: 全体サマリー ===
+# === TAB 1: 全体サマリー＆グラフ ===
 with tab1:
     total_matches = len(df_match)
     leaf_wins = len(df_match[df_match["勝敗"] == "勝ち"])
@@ -116,6 +117,60 @@ with tab1:
     m4.metric("りふなー全体勝率", f"{listener_rate:.1f} %")
 
     st.divider()
+
+    # --- グラフエリア（2カラム） ---
+    g_col1, g_col2 = st.columns(2)
+
+    with g_col1:
+        st.subheader("🥧 勝敗比率（全体）")
+        if total_matches > 0:
+            win_df = pd.DataFrame({
+                "区分": ["りーふ勝利", "りふなー勝利"],
+                "勝利数": [leaf_wins, listener_wins]
+            })
+            pie_chart = alt.Chart(win_df).mark_arc(innerRadius=50).encode(
+                theta=alt.Theta(field="勝利数", type="quantitative"),
+                color=alt.Color(
+                    field="区分",
+                    type="nominal",
+                    scale=alt.Scale(domain=["りーふ勝利", "りふなー勝利"], range=["#4A90E2", "#FF6B6B"]),
+                    legend=alt.Legend(title="")
+                ),
+                tooltip=["区分", "勝利数"]
+            ).properties(height=300)
+            st.altair_chart(pie_chart, use_container_width=True)
+
+    with g_col2:
+        st.subheader("📈 試合経過ごとの勝率推移")
+        if total_matches > 0:
+            trend_df = df_match.copy()
+            trend_df["試合No"] = range(1, len(trend_df) + 1)
+            trend_df["りふなー勝利フラグ"] = (trend_df["勝敗"] == "負け").astype(int)
+            trend_df["りーふ勝利フラグ"] = (trend_df["勝敗"] == "勝ち").astype(int)
+            trend_df["りふなー累計勝率(%)"] = (trend_df["りふなー勝利フラグ"].cumsum() / trend_df["試合No"] * 100).round(1)
+            trend_df["りーふ累計勝率(%)"] = (trend_df["りーふ勝利フラグ"].cumsum() / trend_df["試合No"] * 100).round(1)
+
+            trend_melted = trend_df.melt(
+                id_vars=["試合No", "登場回", "対戦相手"],
+                value_vars=["りーふ累計勝率(%)", "りふなー累計勝率(%)"],
+                var_name="陣営",
+                value_name="勝率(%)"
+            )
+            line_chart = alt.Chart(trend_melted).mark_line(point=True).encode(
+                x=alt.X("試合No:Q", title="累計試合数", axis=alt.Axis(tickMinStep=1)),
+                y=alt.Y("勝率(%):Q", scale=alt.Scale(domain=[0, 100]), title="勝率 (%)"),
+                color=alt.Color(
+                    "陣営:N",
+                    scale=alt.Scale(domain=["りーふ累計勝率(%)", "りふなー累計勝率(%)"], range=["#4A90E2", "#FF6B6B"]),
+                    legend=alt.Legend(title="")
+                ),
+                tooltip=["試合No", "登場回", "対戦相手", "陣営", "勝率(%)"]
+            ).properties(height=300)
+            st.altair_chart(line_chart, use_container_width=True)
+
+    st.divider()
+
+    # --- ポケモン採用ランキング（横棒グラフ ＋ テーブル） ---
     st.subheader("🔥 ポケモン構成別 採用ランキング")
     if not df_poke.empty:
         summary_poke = (
@@ -124,7 +179,16 @@ with tab1:
             .reset_index(name="採用回数")
             .sort_values("採用回数", ascending=False)
         )
-        st.dataframe(summary_poke, use_container_width=True, hide_index=True)
+        summary_poke["ラベル"] = summary_poke["ポケモン名"] + " (" + summary_poke["性格"] + ")"
+
+        bar_chart = alt.Chart(summary_poke.head(12)).mark_bar(color="#F5A623").encode(
+            x=alt.X("採用回数:Q", title="採用回数", axis=alt.Axis(tickMinStep=1)),
+            y=alt.Y("ラベル:N", sort="-x", title=""),
+            tooltip=["ポケモン名", "性格", "努力値・能力ポイント", "持ち物", "採用回数"]
+        ).properties(height=350)
+        st.altair_chart(bar_chart, use_container_width=True)
+
+        st.dataframe(summary_poke.drop(columns=["ラベル"]), use_container_width=True, hide_index=True)
 
 # === TAB 2: ポケモン個別検索 ===
 with tab2:
