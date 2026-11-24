@@ -106,8 +106,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # === TAB 1: 全体サマリー＆グラフ ===
 with tab1:
     total_matches = len(df_match)
-    leaf_wins = len(df_match[df_match["勝敗"] == "勝ち"])
-    listener_wins = len(df_match[df_match["勝敗"] == "負け"])
+    listener_wins = len(df_match[df_match["勝敗"] == "勝ち"])
+    leaf_wins = len(df_match[df_match["勝敗"] == "負け"])
     listener_rate = (listener_wins / total_matches * 100) if total_matches > 0 else 0
 
     m1, m2, m3, m4 = st.columns(4)
@@ -145,8 +145,8 @@ with tab1:
         if total_matches > 0:
             trend_df = df_match.copy()
             trend_df["試合No"] = range(1, len(trend_df) + 1)
-            trend_df["りふなー勝利フラグ"] = (trend_df["勝敗"] == "負け").astype(int)
-            trend_df["りーふ勝利フラグ"] = (trend_df["勝敗"] == "勝ち").astype(int)
+            trend_df["りふなー勝利フラグ"] = (trend_df["勝敗"] == "勝ち").astype(int)
+            trend_df["りーふ勝利フラグ"] = (trend_df["勝敗"] == "負け").astype(int)
             trend_df["りふなー累計勝率(%)"] = (trend_df["りふなー勝利フラグ"].cumsum() / trend_df["試合No"] * 100).round(1)
             trend_df["りーふ累計勝率(%)"] = (trend_df["りーふ勝利フラグ"].cumsum() / trend_df["試合No"] * 100).round(1)
 
@@ -209,8 +209,8 @@ with tab3:
     filtered_match = df_match if selected_listener == "すべて" else df_match[df_match["対戦相手"] == selected_listener]
     
     l_total = len(filtered_match)
-    l_win = len(filtered_match[filtered_match["勝敗"] == "負け"])
-    l_lose = len(filtered_match[filtered_match["勝敗"] == "勝ち"])
+    l_win = len(filtered_match[filtered_match["勝敗"] == "勝ち"])
+    l_lose = len(filtered_match[filtered_match["勝敗"] == "負け"])
     l_rate = (l_win / l_total * 100) if l_total > 0 else 0
 
     c1, c2, c3 = st.columns(3)
